@@ -1,0 +1,412 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: monitoring
+data:
+  grafana.ini: |
+    [auth.anonymous]
+    enabled = true
+    org_role = Admin
+
+    [security]
+    admin_user = admin
+    admin_password = admin
+
+    [users]
+    allow_sign_up = false
+
+    [dashboards]
+    default_home_dashboard_path = /etc/grafana/dashboards/overview.json
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus:9090
+      access: proxy
+      isDefault: true
+      jsonData:
+        timeInterval: 15s
+
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+    - name: 'default'
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      updateIntervalSeconds: 10
+      allowUiUpdates: true
+      options:
+        path: /etc/grafana/dashboards
+
+  overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Monitoring Overview",
+        "tags": ["monitoring", "prometheus"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Services Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up",
+                "legendFormat": "{{job}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "mappings": [
+                  {
+                    "options": {
+                      "0": {
+                        "text": "Down"
+                      },
+                      "1": {
+                        "text": "Up"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ],
+                "thresholds": {
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            },
+            "options": {
+              "reduceOptions": {
+                "values": false,
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": ""
+              },
+              "orientation": "auto",
+              "textMode": "auto",
+              "colorMode": "background"
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "Active Alerts",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "ALERTS{alertstate=\"firing\"}",
+                "legendFormat": "{{alertname}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            },
+            "options": {
+              "reduceOptions": {
+                "values": false,
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": ""
+              },
+              "orientation": "auto",
+              "textMode": "auto",
+              "colorMode": "background"
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 0
+            }
+          },
+          {
+            "id": 3,
+            "title": "HTTP Requests Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(prometheus_http_requests_total[5m])",
+                "legendFormat": "{{handler}}"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "requests/sec",
+                "show": true
+              },
+              {
+                "show": true
+              }
+            ],
+            "xAxis": {
+              "show": true
+            },
+            "gridPos": {
+              "h": 9,
+              "w": 24,
+              "x": 0,
+              "y": 8
+            }
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "10s"
+      }
+    }
+
+  alerts.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Alerts Dashboard",
+        "tags": ["alerts", "alertmanager"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Active Alerts",
+            "type": "table",
+            "targets": [
+              {
+                "expr": "ALERTS{alertstate=\"firing\"}",
+                "format": "table",
+                "instant": true
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "custom": {
+                  "displayMode": "list",
+                  "filterable": true
+                }
+              },
+              "overrides": [
+                {
+                  "matcher": {
+                    "id": "byName",
+                    "options": "alertstate"
+                  },
+                  "properties": [
+                    {
+                      "id": "custom.displayMode",
+                      "value": "color-background"
+                    },
+                    {
+                      "id": "color",
+                      "value": {
+                        "mode": "thresholds"
+                      }
+                    },
+                    {
+                      "id": "thresholds",
+                      "value": {
+                        "steps": [
+                          {
+                            "color": "green",
+                            "value": null
+                          },
+                          {
+                            "color": "red",
+                            "value": 1
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 24,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "Alert History",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "increase(alertmanager_alerts_received_total[1h])",
+                "legendFormat": "Alerts Received"
+              },
+              {
+                "expr": "increase(alertmanager_alerts_invalid_total[1h])",
+                "legendFormat": "Invalid Alerts"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "count",
+                "show": true
+              },
+              {
+                "show": false
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 8
+            }
+          },
+          {
+            "id": 3,
+            "title": "Alertmanager Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{job=\"alertmanager\"}",
+                "legendFormat": "Alertmanager"
+              },
+              {
+                "expr": "alertmanager_cluster_members",
+                "legendFormat": "Cluster Members"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 8
+            }
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+
+  prometheus-stats.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Prometheus Statistics",
+        "tags": ["prometheus", "stats"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Prometheus Targets",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "prometheus_sd_discovered_targets",
+                "legendFormat": "Discovered"
+              },
+              {
+                "expr": "prometheus_sd_discovered_targets{job=\"prometheus\"}",
+                "legendFormat": "Active"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                }
+              }
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "Prometheus TSDB",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "prometheus_tsdb_head_samples_appended_total",
+                "legendFormat": "Samples Appended"
+              },
+              {
+                "expr": "prometheus_tsdb_head_series",
+                "legendFormat": "Head Series"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 0
+            }
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
